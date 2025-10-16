@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 from simple_history.models import HistoricalRecords
 
@@ -53,8 +54,8 @@ class Proposal(models.Model):
 		('APPROVED', 'Approved'),
 		('DISBURSED', 'Disbursed'),
 		('REJECTED', 'Rejected'),
-        ('CLOSED', 'Closed'),
-        ('ON_HOLD', 'On Hold'),
+		('CLOSED', 'Closed'),
+		('ON_HOLD', 'On Hold'),
 	]
 	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='DRAFT')
 
@@ -74,7 +75,24 @@ class Proposal(models.Model):
 	def __str__(self) -> str:
 		return self.gcir_code or f"Proposal {self.pk}"
 
+	def clean(self):
+		"""
+		Validate that proposal has exactly one PI and zero or more Co-PIs.
+		
+		Raises ValidationError if validation fails.
+		"""
+		# Only validate if proposal is already saved (has a pk)
+		if self.pk is None:
+			return
 
+		pi_count = self.proposal_investigators.filter(role='PI').count() # type: ignore
+		
+		if pi_count == 0:
+			raise ValidationError("Proposal must have exactly one Principal Investigator (PI).")
+		elif pi_count > 1:
+			raise ValidationError("Proposal can have only one Principal Investigator (PI).")
+		
+		# Co-PIs are optional, so no validation needed for them
 class ProposalInvestigator(models.Model):
 	ROLE_CHOICES = [
 		('PI', 'Principal Investigator'),
