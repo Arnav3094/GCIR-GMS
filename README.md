@@ -69,14 +69,13 @@ pipenv shell
 
 To exit: `exit`
 
----
 
 ## Current Setup Status
 
 - [x] **Step 1:** Clone repository
 - [x] **Step 2:** Install dependencies with Pipenv
 - [x] **Step 3:** Activate Pipenv shell
-- [ ] **Step 4:** Create Django project & app
+- [x] **Step 4:** Create Django project & app
 - [ ] **Step 5:** Configure Django settings
 - [ ] **Step 6:** Create data models
 - [ ] **Step 7:** Create superuser & test admin
@@ -103,6 +102,7 @@ GCIR-GMS/
 │   ├── settings.py                    # Configuration
 │   ├── urls.py                        # Main URL routing
 │   └── wsgi.py                        # Production WSGI app
+|   
 │
 └── proposals/                         # Main Django app
     ├── models.py                      # Database schemas
