@@ -54,9 +54,7 @@ This document outlines the requirements, revised data model, simplified architec
 
 ## III. Simplified Technical Specification
 
-### 1. Revised Data Model (Database Schema Outline) 💾
-
-The primary key of the `Proposal` table is now the `GCIR_Code`.
+### 1. Data Model (Database Schema Outline) 💾
 
 | Table Name | Key Fields | Key Relationships | Notes |
 | :--- | :--- | :--- | :--- |
