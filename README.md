@@ -12,8 +12,11 @@ A Django-based digital grant management system for GCIR division office staff.
 1. [Quick Start](#quick-start)
 2. [Development Setup](#development-setup)
 3. [Project Structure](#project-structure)
-4. [Development Progress](#development-progress)
-5. [Useful Commands](#useful-commands)
+4. [Useful Commands](#useful-commands)
+5. [Development Notes](#development-notes)
+6. [Documentation](#documentation)
+7. [Next Steps](#next-steps)
+8. [License](#license)
 
 ---
 
@@ -87,7 +90,7 @@ To exit: `exit`
 
 ## Project Structure
 
-```
+```txt
 GCIR-GMS/
 ├── README.md                          # This file
 ├── REQUIREMENTS.md                    # Original requirements documentation
@@ -165,6 +168,66 @@ pipenv run python manage.py migrate
 pipenv run python manage.py sqlmigrate proposals 0001
 ```
 
+### Database & initial data
+
+The repository includes an auto-generated migration `proposals/migrations/0001_initial.py` which describes the initial schema for the `proposals` app (tables like `Proposal`, `Department`, `Investigator`, plus the historical `HistoricalProposal` table created by `django-simple-history`). This is the canonical representation of the schema — run `migrate` to apply it to your local database.
+
+How to get a working local database quickly
+
+- Option A — Create a fresh local DB by running migrations (recommended for development):
+
+```bash
+# Activate pipenv shell if not already
+pipenv shell
+
+# Apply all migrations (creates a fresh db.sqlite3 in the project root)
+python manage.py migrate
+
+# (Optional) Create a superuser for admin access
+python manage.py createsuperuser
+
+# Start the development server and login at http://127.0.0.1:8000/admin
+python manage.py runserver
+```
+
+- Option B — Use a provided `db.sqlite3` snapshot (if you received one):
+
+1. Place `db.sqlite3` at the project root (same level as `manage.py`).
+2. If you have migrations in the repo that match the snapshot, Django should detect the applied migrations; run `python manage.py showmigrations` to confirm.
+3. If migrations differ, prefer Option A or ask the teammate who provided the snapshot for the matching migration files.
+
+Using fixtures for initial data
+
+If the project exposes fixtures (JSON/YAML/fixtures/) you can load them after migrating:
+
+```bash
+python manage.py loaddata initial_departments.json
+python manage.py loaddata initial_projecttypes.json
+```
+
+Inspecting migrations and SQL
+
+To inspect the SQL emitted by a migration (useful for review or debugging):
+
+```bash
+python manage.py sqlmigrate proposals 0001
+```
+
+Rolling back migrations (development only)
+
+To revert the `proposals` app to zero (drop tables) — only do this on a disposable local DB:
+
+```bash
+python manage.py migrate proposals zero
+```
+
+Notes & gotchas
+
+- The `0001_initial.py` migration also creates the `HistoricalProposal` table used by `django-simple-history`. This table is expected and required for audit trail functionality.
+- Keep migration files under version control — they document schema history and are how other developers will reproduce your database schema.
+- If you switch between using a snapshot `db.sqlite3` and regenerating via migrations, ensure migrations and the snapshot are aligned to avoid inconsistencies.
+
+
 ### Admin & Users
 
 ```bash
@@ -231,6 +294,6 @@ See [LICENSE](LICENSE) file for details.
 ## Questions?
 
 Refer to:
-- Django Official Docs: https://docs.djangoproject.com/
+
+- Django Official Docs: <https://docs.djangoproject.com/>
 - Project SPECIFICATION.md for architecture details
-- Development Roadmap for step-by-step guidance
