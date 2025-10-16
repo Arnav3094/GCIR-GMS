@@ -64,7 +64,8 @@ Deployment: Gunicorn (app server) + Nginx (reverse proxy) on various platforms
 ```text
 GCIR-GMS/
 ├── manage.py                           # Django CLI tool
-├── requirements.txt                    # Python dependencies
+├── Pipfile                             # Pipenv dependencies
+├── Pipfile.lock                        # Locked dependency versions
 ├── .env (gitignored)                   # Environment variables (SECRET_KEY, DEBUG, etc.)
 ├── db.sqlite3 (gitignored)             # Database file
 ├── gms_project/                        # Django project folder
@@ -103,7 +104,9 @@ GCIR-GMS/
 
 ---
 
-## 3. Dependencies (`requirements.txt`)
+## 3. Dependencies (Pipenv)
+
+Dependencies are managed using **Pipenv** via `Pipfile`:
 
 ```txt
 Django==4.2.7
@@ -112,6 +115,15 @@ python-decouple==3.8
 gunicorn==21.2.0
 pillow==10.1.0
 ```
+
+To install:
+
+```bash
+pipenv install
+pipenv shell
+```
+
+The `Pipfile.lock` ensures reproducible dependency versions across environments.
 
 ---
 
@@ -438,18 +450,21 @@ cd /home/ubuntu
 git clone https://github.com/Arnav3094/GCIR-GMS.git
 cd GCIR-GMS
 
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Install Pipenv
+pip3 install pipenv
 
-python manage.py collectstatic --noinput
-python manage.py migrate
+# Install dependencies
+pipenv install --deploy --ignore-pipfile
+
+# Run migrations
+pipenv run python manage.py collectstatic --noinput
+pipenv run python manage.py migrate
 
 # Supervisor config
 sudo tee /etc/supervisor/conf.d/gms.conf > /dev/null <<EOF
 [program:gms]
 directory=/home/ubuntu/GCIR-GMS
-command=/home/ubuntu/GCIR-GMS/venv/bin/gunicorn gms_project.wsgi:application --bind 127.0.0.1:8000 --workers 3
+command=/home/ubuntu/.local/bin/pipenv run gunicorn gms_project.wsgi:application --bind 127.0.0.1:8000 --workers 3
 autostart=true
 autorestart=true
 stderr_logfile=/var/log/gms.err.log
@@ -467,7 +482,7 @@ server {
     server_name your-domain.com;
     
     location /static/ {
-        alias /home/ubuntu/GCIR-GMS/static/;
+        alias /home/ubuntu/GCIR-GMS/staticfiles/;
     }
     
     location / {
@@ -491,6 +506,15 @@ sudo certbot --nginx -d your-domain.com
 ## 9. Initial Setup Commands
 
 ```bash
+# Install Pipenv globally (if not already installed)
+pip install pipenv
+
+# Install dependencies
+pipenv install
+
+# Activate Pipenv shell
+pipenv shell
+
 # Create project & app
 django-admin startproject gms_project .
 python manage.py startapp proposals
@@ -543,6 +567,9 @@ python manage.py runserver
 ### Step 1: Project Setup (Once)
 
 ```bash
+pipenv install
+pipenv shell
+
 django-admin startproject gms_project .
 python manage.py startapp proposals
 python manage.py makemigrations
@@ -573,7 +600,7 @@ python manage.py runserver
 ### Step 5: Deploy
 
 - Push to GitHub
-- SSH into DigitalOcean droplet
+- SSH into server
 - Run deployment script (Section 8)
 
 ---
