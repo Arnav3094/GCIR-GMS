@@ -1,0 +1,22 @@
+GCIR-GMS Weekly Changelog Report
+==================================================
+Period: 2025-10-10 06:39 to 2025-10-17 06:39
+Generated on: 2025-10-17 06:39:23
+
+Total changes found: 2
+
+[2025-10-17 05:42:03] MODIFIED
+  GCIR Code: G-2025-CS-CODE1-0001
+  Title: Proposal 1
+  Status: PERMISSION
+  Department: EEE - Electronics
+  Project Type: CODE1 - Project Type 1
+  Changed by: yash
+
+[2025-10-17 05:23:27] CREATED
+  GCIR Code: G-2025-CS-CODE1-0001
+  Title: Proposal 1
+  Status: PERMISSION
+  Department: CS - Computer Science
+  Project Type: CODE1 - Project Type 1
+  Changed by: yash

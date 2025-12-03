@@ -9,6 +9,10 @@ django-simple-history = "==3.4.0"
 python-decouple = "==3.8"
 gunicorn = "==21.2.0"
 pillow = "==10.1.0"
+pandas = "*"
+openpyxl = "*"
+# optional:
+xlrd = "*"
 
 [dev-packages]
 

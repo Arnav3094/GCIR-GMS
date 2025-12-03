@@ -12,6 +12,12 @@ from django import forms
 from django.core.exceptions import ValidationError
 from simple_history.admin import SimpleHistoryAdmin
 
+from django.urls import path, reverse
+from django.shortcuts import render, redirect
+from django.db import transaction
+import io
+import csv
+
 from .models import (
     Department,
     ProjectType,
@@ -101,6 +107,157 @@ class InvestigatorAdmin(admin.ModelAdmin):
     list_display = ('psrn', 'name', 'email', 'department')
     list_filter = ('department',)
     search_fields = ('psrn', 'name', 'email')
+
+    # show custom change form template so we can add the button
+    change_form_template = "admin/proposals/investigator/change_form.html"
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        """Add upload URL to template context so template can render the button."""
+        if extra_context is None:
+            extra_context = {}
+        extra_context['upload_url'] = reverse('admin:proposals_investigator_upload_psrn')
+        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
+
+    # Upload form for PSRN mapping
+    class PSRNUploadForm(forms.Form):
+        file = forms.FileField(label='Excel/CSV file', help_text='Accepted: .xlsx, .xls, .csv')
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('upload-psrn/', self.admin_site.admin_view(self.upload_psrn_view), name='proposals_investigator_upload_psrn'),
+        ]
+        return custom_urls + urls
+
+    def upload_psrn_view(self, request):
+        """
+        Admin view to upload a spreadsheet (CSV or Excel) with columns:
+        PSRN, NAME, DEPT
+
+        Behavior:
+        - Column headers are case-insensitive.
+        - If DEPT value does not match an existing Department, create a Department
+          with code=DEPT and name=DEPT.
+        - For each row, update_or_create Investigator by psrn.
+        """
+        if request.method == 'POST':
+            form = self.PSRNUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                uploaded = form.cleaned_data['file']
+                filename = uploaded.name.lower()
+                rows = []
+                # Read file bytes once
+                data = uploaded.read()
+                try:
+                    try:
+                        import pandas as pd
+                    except Exception:
+                        pd = None
+
+                    if pd:
+                        if filename.endswith(('.xls', '.xlsx')):
+                            df = pd.read_excel(io.BytesIO(data))
+                        else:
+                            # csv or other text formats
+                            df = pd.read_csv(io.StringIO(data.decode('utf-8')))
+                        # normalize columns
+                        df.columns = [str(c).strip().lower() for c in df.columns]
+                        for _, r in df.iterrows():
+                            # convert row to dict with lowercased keys
+                            row = {k: (None if pd.isna(v) else v) for k, v in r.items()}
+                            rows.append(row)
+                    else:
+                        # pandas not available: support CSV only
+                        if not filename.endswith('.csv'):
+                            raise RuntimeError("pandas not installed; only CSV supported as fallback. Install pandas to read Excel files.")
+                        text = data.decode('utf-8')
+                        reader = csv.DictReader(io.StringIO(text))
+                        for r in reader:
+                            rows.append({k.strip().lower(): v for k, v in r.items()})
+                except Exception as e:
+                    messages.error(request, f"Error reading uploaded file: {e}")
+                    return render(request, 'admin/proposals/investigator/upload_psrn.html', {'form': form, 'opts': self.model._meta})
+
+                if not rows:
+                    messages.error(request, "Uploaded file contains no rows.")
+                    return render(request, 'admin/proposals/investigator/upload_psrn.html', {'form': form, 'opts': self.model._meta})
+
+                # required column check
+                sample_keys = set(rows[0].keys())
+                if 'psrn' not in sample_keys:
+                    messages.error(request, "Missing required column 'PSRN'. Column headers are case-insensitive.")
+                    return render(request, 'admin/proposals/investigator/upload_psrn.html', {'form': form, 'opts': self.model._meta})
+
+                created = 0
+                updated = 0
+                failed = 0
+                errors = []
+
+                with transaction.atomic():
+                    for i, row in enumerate(rows, start=1):
+                        psrn = (row.get('psrn') or '').strip()
+                        if not psrn:
+                            failed += 1
+                            errors.append(f"Row {i}: empty PSRN")
+                            continue
+                        name = (row.get('name') or '').strip()
+                        dept_val = (row.get('dept') or '').strip()
+
+                        department_obj = None
+                        if dept_val:
+                            dept_code = dept_val.strip()
+                            # Try to find existing department by code or name (case-insensitive)
+                            department_obj = Department.objects.filter(code__iexact=dept_code).first() or Department.objects.filter(name__iexact=dept_code).first()
+                            if not department_obj:
+                                # create new department with code and name set to provided value
+                                try:
+                                    department_obj = Department.objects.create(code=dept_code, name=dept_code)
+                                except Exception as e:
+                                    # creation failed
+                                    failed += 1
+                                    errors.append(f"Row {i} (psrn={psrn}): failed creating department '{dept_code}': {e}")
+                                    continue
+
+                        try:
+                            defaults = {}
+                            if name:
+                                defaults['name'] = name
+                            if department_obj:
+                                defaults['department'] = department_obj
+                            obj, created_flag = Investigator.objects.update_or_create(
+                                psrn=psrn,
+                                defaults=defaults
+                            )
+                            if created_flag:
+                                created += 1
+                            else:
+                                updated += 1
+                        except Exception as e:
+                            failed += 1
+                            errors.append(f"Row {i} (psrn={psrn}): {e}")
+
+                # Report results to admin
+                if created:
+                    messages.success(request, f"Created {created} investigators.")
+                if updated:
+                    messages.success(request, f"Updated {updated} investigators.")
+                if failed:
+                    messages.error(request, f"Failed {failed} rows. See up to first 10 errors below.")
+                    for err in errors[:10]:
+                        messages.error(request, err)
+                    if len(errors) > 10:
+                        messages.error(request, f"... and {len(errors)-10} more errors.")
+
+                return redirect('admin:proposals_investigator_changelist')
+        else:
+            form = self.PSRNUploadForm()
+
+        context = {
+            'form': form,
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+        }
+        return render(request, 'admin/proposals/investigator/upload_psrn.html', context)
 
 
 @admin.register(ExternalInvestigator)

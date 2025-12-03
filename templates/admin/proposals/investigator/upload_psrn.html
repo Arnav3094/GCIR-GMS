@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+  <h1>Upload PSRN → Investigator mapping</h1>
+  <p>Upload a CSV or Excel file with columns: <strong>PSRN</strong>, <strong>NAME</strong>, <strong>DEPT</strong> (case-insensitive).</p>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="default">Upload</button>
+    <a href="{% url 'admin:proposals_investigator_changelist' %}">Back to Investigators</a>
+  </form>
+{% endblock %}

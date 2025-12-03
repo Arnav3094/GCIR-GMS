@@ -1,0 +1,22 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{# Add Upload button in the top submit buttons area #}
+{% block submit_buttons_top %}
+  {{ block.super }}
+  {% if upload_url %}
+    <a href="{{ upload_url }}" class="button" style="margin-left:8px;">
+      {% trans "Upload list" %}
+    </a>
+  {% endif %}
+{% endblock %}
+
+{# Also add it to the bottom submit buttons area so it appears with the standard save buttons #}
+{% block submit_buttons_bottom %}
+  {{ block.super }}
+  {% if upload_url %}
+    <a href="{{ upload_url }}" class="button" style="margin-left:8px;">
+      {% trans "Upload list" %}
+    </a>
+  {% endif %}
+{% endblock %}
